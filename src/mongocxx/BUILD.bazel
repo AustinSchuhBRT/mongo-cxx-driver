@@ -1,3 +1,6 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -6,14 +9,40 @@ exports_files([
     "config/version.hpp.in",
 ])
 
+_defines = []
+
+_ssl_defines = [
+    "MONGOCXX_ENABLE_SSL=1",
+]
+
+write_file(
+    name = "mongocxx_config",
+    out = "config/config.hpp",
+    content = [
+        "#define MONGOCXX_INLINE_NAMESPACE_BEGIN",
+        "#define MONGOCXX_INLINE_NAMESPACE_END",
+    ],
+)
+
+write_file(
+    name = "mongocxx_private_config",
+    out = "config/private/config.hh",
+    content = [
+        "// Configuration done through bazel"
+    ],
+)
+
 cc_library(
     name = "mongocxx_hdrs",
     strip_include_prefix = "/src",
     includes = ["."],
-    hdrs = glob(["*.hpp"]),
+    hdrs = glob(["*.hpp"]) + [":mongocxx_config", ":mongocxx_private_config"],
+    defines = _defines + select({
+        "@bazelregistry_mongo_c_driver//:no_ssl": [],
+        "@bazelregistry_mongo_c_driver//:openssl": _ssl_defines,
+        "@bazelregistry_mongo_c_driver//:boringssl": _ssl_defines,
+    }),
     deps = [
-        "@mongocxx_config//:mongocxx_config",
-        "@mongocxx_config//:mongocxx_private_config",
         "@mongocxx_config//:mongocxx_version",
     ],
 )
@@ -22,7 +51,7 @@ cc_library(
     name = "mongocxx_private_hdrs",
     strip_include_prefix = "/src",
     includes = ["."],
-    hdrs = ["test_util/mock.hh", "test_util/export_for_testing.hh"] + glob([
+    hdrs = ["test_util/mock.hh", "test_util/export_for_testing.hh", ":mongocxx_private_config"] + glob([
         "config/**/*.hpp",
         "config/**/*.hh",
         "events/**/*.hpp",
