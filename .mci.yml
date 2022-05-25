@@ -26,10 +26,10 @@ variables:
 
     ## cmake flag variables
     cmake_flags:
-        linux_cmake_flags: &linux_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers" -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wconversion -Wnarrowing -Wno-expansion-to-defined -pedantic -Werror -Wno-missing-field-initializers"
-        macos_cmake_flags: &macos_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers" -DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -Wconversion -Wnarrowing -pedantic -Werror"
-        asan_cmake_flags: &asan_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fsanitize=address -O1 -g -fno-omit-frame-pointer -Wall -Wextra -Wconversion -Wnarrowing -pedantic -Werror"
-        ubsan_cmake_flags: &ubsan_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fsanitize=undefined -fsanitize-blacklist=$(pwd)/etc/ubsan.blacklist -fno-sanitize-recover=undefined -O1 -g -fno-omit-frame-pointer -Wall -Wextra -Wconversion -Wnarrowing -pedantic -Werror"
+        linux_cmake_flags: &linux_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers $ignore_deprecated" -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wconversion -Wnarrowing -Wno-expansion-to-defined -pedantic -Werror -Wno-missing-field-initializers $ignore_deprecated"
+        macos_cmake_flags: &macos_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers $ignore_deprecated" -DCMAKE_CXX_FLAGS="-stdlib=libc++ -Wall -Wextra -Wconversion -Wnarrowing -pedantic -Werror $ignore_deprecated"
+        asan_cmake_flags: &asan_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers $ignore_deprecated" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fsanitize=address -O1 -g -fno-omit-frame-pointer -Wall -Wextra -Wconversion -Wnarrowing -pedantic -Werror $ignore_deprecated"
+        ubsan_cmake_flags: &ubsan_cmake_flags -DCMAKE_C_FLAGS="-Wall -Wextra -Wno-attributes -Werror -Wno-missing-field-initializers $ignore_deprecated" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DCMAKE_CXX_FLAGS="-D_GLIBCXX_USE_CXX11_ABI=0 -fsanitize=undefined -fsanitize-blacklist=$(pwd)/etc/ubsan.blacklist -fno-sanitize-recover=undefined -O1 -g -fno-omit-frame-pointer -Wall -Wextra -Wconversion -Wnarrowing -pedantic -Werror $ignore_deprecated"
         msvc2015_cmake_flags: &msvc2015_cmake_flags -DBOOST_ROOT=c:/local/boost_1_60_0
         msvc2015_generator: &msvc2015_generator Visual Studio 14 2015 Win64
         # The VS option /Zc:__cplusplus is necessary to build with VS2017's
@@ -83,7 +83,6 @@ functions:
               shell: bash
               script: |
                  set -o errexit
-                 set -o xtrace
                  set -o pipefail
                  rm -rf "mongo-cxx-driver"
                  rm -fr "mongo-c-driver"
@@ -98,7 +97,6 @@ functions:
               working_dir: "."
               script: |
                  set -o errexit
-                 set -o xtrace
                  set -o pipefail
                  cc --version || true
                  c++ --version || true
@@ -114,7 +112,6 @@ functions:
             working_dir: "."
             script: |
                 set -o errexit
-                set -o xtrace
                 set -o pipefail
                 if [ ! -d "drivers-evergreen-tools" ]; then
                     git clone git@github.com:mongodb-labs/drivers-evergreen-tools.git
@@ -129,7 +126,7 @@ functions:
                 export MONGODB_VERSION=${mongodb_version}
                 export AUTH=${AUTH}
                 export TOPOLOGY=${TOPOLOGY|server}
-                
+
                 echo "{ \"releases\": { \"default\": \"$MONGODB_BINARIES\" }}" > $MONGO_ORCHESTRATION_HOME/orchestration.config
                 ./.evergreen/run-orchestration.sh
 
@@ -149,7 +146,6 @@ functions:
             working_dir: "."
             script: |
                 set -o errexit
-                set -o xtrace
                 set -o pipefail
                 cd drivers-evergreen-tools/.evergreen/orchestration
                 if [ -f venv/bin/activate ]; then
@@ -166,7 +162,6 @@ functions:
             working_dir: "mongo-cxx-driver"
             script: |
                     set -o errexit
-                    set -o xtrace
                     set -o pipefail
                     export PREFIX=$(pwd)/../mongoc/
                     if [ "Windows_NT" == "$OS" ]; then
@@ -182,7 +177,6 @@ functions:
               working_dir: "mongo-cxx-driver"
               script: |
                   set -o errexit
-                  set -o xtrace
                   set -o pipefail
                   python etc/clang_format.py lint
 
@@ -193,7 +187,6 @@ functions:
               working_dir: "mongo-cxx-driver"
               script: |
                   set -o errexit
-                  set -o xtrace
                   set -o pipefail
                   export BUILD_TYPE=${build_type}
                   export PATH="${extra_path}:$PATH"
@@ -225,6 +218,11 @@ functions:
 
                   export GENERATOR="${generator}"
 
+                  if [ "$(echo ${branch_name} | cut -f2 -d'/')" != "${branch_name}" ]; then
+                      # ignore deprecation warnings when building on a release branch
+                      ignore_deprecated=-Wno-deprecated-declarations
+                  fi
+
                   .evergreen/compile.sh -DCMAKE_PREFIX_PATH="$MONGOC_PREFIX" ${cmake_flags} ${poly_flags} $ADDL_OPTS -DCMAKE_INSTALL_PREFIX=install
 
     "test":
@@ -234,7 +232,6 @@ functions:
               working_dir: "mongo-cxx-driver"
               script: |
                   set -o errexit
-                  set -o xtrace
                   set -o pipefail
 
                   # Grabs the mongocryptd path
@@ -244,7 +241,7 @@ functions:
                      export MONGOCRYPTD_PATH=$(cygpath -m $MONGOCRYPTD_PATH)
                   fi
                   cd mongo-cxx-driver
-                  
+
                   export PATH="${extra_path}:$PATH"
 
                   cd build
@@ -270,13 +267,11 @@ functions:
                   export RETRYABLE_READS_TESTS_PATH="$(pwd)/../data/retryable-reads"
                   export READ_WRITE_CONCERN_OPERATION_TESTS_PATH="$(pwd)/../data/read-write-concern/operation"
 
-                  # export environment variables for encryption tests (and redact them)
-                  set +o xtrace
+                  # export environment variables for encryption tests
                   set +o errexit
                   export MONGOCXX_TEST_AWS_SECRET_ACCESS_KEY="${cse_aws_secret_access_key}"
                   export MONGOCXX_TEST_AWS_ACCESS_KEY_ID="${cse_aws_access_key_id}"
                   set -o errexit
-                  set -o xtrace
 
                   if [ "Windows_NT" == "$OS" ]; then
                       CRUD_TESTS_PATH=$(cygpath -m $CRUD_TESTS_PATH)
@@ -289,7 +284,7 @@ functions:
                       if [ -z "${disable_slow_tests}" ]; then
                           export MONGOCXX_ENABLE_SLOW_TESTS=1
                       fi
-                      
+
                       ulimit -c unlimited || true
 
                       # Run tests and examples 1-by-1 with "test_params" so we can run them with valgrind.
@@ -358,7 +353,6 @@ functions:
               working_dir: "mongo-cxx-driver"
               script: |
                   set -o errexit
-                  set -o xtrace
                   set -o pipefail
                   export PATH="${extra_path}:$PATH"
                   cd build
@@ -511,7 +505,6 @@ tasks:
           working_dir: "mongo-cxx-driver"
           script: |-
             set -o errexit
-            set -o xtrace
             export INSTALL_VERSION=${mongocxx_version_finder_sh}
             sh ./.evergreen/uninstall_check.sh
 
@@ -532,7 +525,6 @@ tasks:
           working_dir: "mongo-cxx-driver"
           script: |-
             set -o errexit
-            set -o xtrace
             export INSTALL_VERSION=${mongocxx_version_finder_sh}
             cmd.exe /c .\\.evergreen\\uninstall_check_windows.cmd
 
@@ -546,7 +538,6 @@ tasks:
           shell: bash
           script: |-
             set -o errexit
-            set -o xtrace
             export IS_PATCH="${is_patch}"
             sh .evergreen/debian_package_build.sh
       - command: s3.put
@@ -570,7 +561,6 @@ tasks:
           shell: bash
           script: |-
             set -o errexit
-            set -o xtrace
             export IS_PATCH="${is_patch}"
             export DEB_BUILD_PROFILES="pkg.mongo-cxx-driver.mnmlstc"
             sh .evergreen/debian_package_build.sh
@@ -593,15 +583,15 @@ axes:
     - id: os
       display_name: "OS"
       values:
-          - id: "ubuntu-1604"
-            display_name: "Ubuntu 16.04 Debug"
+          - id: "ubuntu-1804"
+            display_name: "Ubuntu 18.04 Debug"
             variables:
                 extra_path: *linux_extra_path
                 cmake_flags: *linux_cmake_flags
                 build_type: "Debug"
                 tar_options: *linux_tar_options
             run_on:
-                - ubuntu1604-build
+                - ubuntu1804-build
           - id: "windows-2k8"
             display_name: "Windows (VS 2017) Debug"
             variables:
@@ -658,8 +648,8 @@ buildvariants:
     #######################################
     #         Linux Buildvariants         #
     #######################################
-    - name: ubuntu1604-release
-      display_name: "Ubuntu 16.04 Release (MongoDB Latest)"
+    - name: ubuntu1804-release
+      display_name: "Ubuntu 18.04 Release (MongoDB Latest)"
       expansions:
           build_type: "Release"
           tar_options: *linux_tar_options
@@ -667,7 +657,7 @@ buildvariants:
           cmake_flags: *linux_cmake_flags
           mongodb_version: *version_latest
       run_on:
-          - ubuntu1604-build
+          - ubuntu1804-build
       tasks:
           - name: lint
           - name: compile_and_test_with_shared_libs
@@ -675,15 +665,17 @@ buildvariants:
           - name: compile_and_test_with_shared_libs_replica_set
           - name: uninstall_check
 
+    # TODO CXX-2260 Upgrade std::experimental tasks to use Ubuntu 18.04 and mongodb_latest
+    # after bug fixes with newer g++ versions.
     - name: ubuntu1604-debug-std-experimental
-      display_name: "Ubuntu 16.04 Debug (std::experimental) (MongoDB Latest)"
+      display_name: "Ubuntu 16.04 Debug (std::experimental) (MongoDB 4.4)"
       expansions:
           build_type: "Debug"
           tar_options: *linux_tar_options
           extra_path: *linux_extra_path
           cmake_flags: *linux_cmake_flags
           poly_flags: *poly_std_experimental_flags
-          mongodb_version: *version_latest
+          mongodb_version: *version_44
           example_projects_cxx_standard: *std_experimental_cxx_standard
       run_on:
           - ubuntu1604-build
@@ -691,8 +683,8 @@ buildvariants:
           - name: compile_and_test_with_shared_libs
           - name: compile_and_test_with_static_libs
 
-    - name: ubuntu1604-debug-valgrind
-      display_name: "Valgrind Ubuntu 16.04 Debug (MongoDB Latest)"
+    - name: ubuntu1804-debug-valgrind
+      display_name: "Valgrind Ubuntu 18.04 Debug (MongoDB Latest)"
       expansions:
           build_type: "Debug"
           tar_options: *linux_tar_options
@@ -702,13 +694,13 @@ buildvariants:
           mongodb_version: *version_latest
           disable_slow_tests: 1
       run_on:
-          - ubuntu1604-build
+          - ubuntu1804-build
       tasks:
           - name: compile_and_test_with_shared_libs
           - name: compile_and_test_with_static_libs
 
-    - name: ubuntu1604-debug-asan
-      display_name: "ASAN Ubuntu 16.04 Debug (MongoDB Latest)"
+    - name: ubuntu1804-debug-asan
+      display_name: "ASAN Ubuntu 18.04 Debug (MongoDB Latest)"
       expansions:
           build_type: "Debug"
           tar_options: *linux_tar_options
@@ -721,13 +713,13 @@ buildvariants:
           example_projects_cxxflags: *asan_cxxflags
           example_projects_ldflags: *asan_ldflags
       run_on:
-          - ubuntu1604-build
+          - ubuntu1804-build
       tasks:
           - name: compile_and_test_with_shared_libs
           - name: compile_and_test_with_static_libs
 
-    - name: ubuntu1604-debug-ubsan
-      display_name: "UBSAN Ubuntu 16.04 Debug (MongoDB Latest)"
+    - name: ubuntu1804-debug-ubsan
+      display_name: "UBSAN Ubuntu 18.04 Debug (MongoDB Latest)"
       expansions:
           build_type: "Debug"
           tar_options: *linux_tar_options
@@ -740,7 +732,7 @@ buildvariants:
           example_projects_cxxflags: *ubsan_cxxflags
           example_projects_ldflags: *ubsan_ldflags
       run_on:
-          - ubuntu1604-build
+          - ubuntu1804-build
       tasks:
           # We currently don't run UBSAN on the shared library due to issues with UBSAN reporting
           # numerous false positive instances of undefined behavior in the mock tests, when the
@@ -873,7 +865,7 @@ buildvariants:
 
     - name: packaging
       display_name: Linux Distro Packaging
-      run_on: ubuntu1604-test
+      run_on: ubuntu1804-test
       tasks:
          - name: debian-package-build
          - name: debian-package-build-mnmlstc
